@@ -22,6 +22,29 @@ export interface StudioOutput {
   updated_at: string;
 }
 
+export type CanvasSectionStatus = "empty" | "in_progress" | "complete";
+
+export interface CanvasSection {
+  id: string;
+  deal_id: string | null;
+  section_key: string;
+  content: string;
+  status: CanvasSectionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DiscoveryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface DiscoveryResponse {
+  message: string;
+  ready_to_save: boolean;
+  synthesized_content: string | null;
+}
+
 export interface BrandStudioInputs {
   company_description: string;
   sector: string;

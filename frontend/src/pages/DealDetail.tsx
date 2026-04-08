@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BrandStudio } from "@/components/studio/BrandStudio";
 import { PositioningCanvas } from "@/components/studio/PositioningCanvas";
 import { GtmSprinter } from "@/components/studio/GtmSprinter";
+import { Canvas } from "@/components/canvas/Canvas";
 import type { Deal } from "@/types";
 
 export default function DealDetail() {
@@ -57,13 +58,18 @@ export default function DealDetail() {
         <p className="text-[var(--muted-foreground)]">{deal.description}</p>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue="canvas">
         <TabsList>
+          <TabsTrigger value="canvas">Canvas</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="brand">Brand Studio</TabsTrigger>
           <TabsTrigger value="positioning">Positioning</TabsTrigger>
           <TabsTrigger value="gtm">GTM Sprinter</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="canvas">
+          <Canvas dealId={deal.id} ventureDescription={deal.description} />
+        </TabsContent>
 
         <TabsContent value="overview">
           <Card>

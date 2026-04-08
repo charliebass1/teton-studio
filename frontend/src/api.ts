@@ -4,6 +4,10 @@ import type {
   BrandStudioInputs,
   PositioningCanvasInputs,
   GtmSprinterInputs,
+  CanvasSection,
+  CanvasSectionStatus,
+  DiscoveryMessage,
+  DiscoveryResponse,
 } from "./types";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
@@ -101,6 +105,108 @@ export async function getDeal(id: string): Promise<Deal | null> {
   if (!res.ok) return DEMO_DEALS.find((d) => d.id === id) || null;
   const data = await res.json();
   return data[0] || DEMO_DEALS.find((d) => d.id === id) || null;
+}
+
+// ---- Canvas sections ----
+
+function canvasLocalKey(dealId: string) {
+  return `canvas_${dealId}`;
+}
+
+function readLocalCanvas(dealId: string): Record<string, CanvasSection> {
+  try {
+    const raw = localStorage.getItem(canvasLocalKey(dealId));
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalCanvas(dealId: string, sections: Record<string, CanvasSection>) {
+  localStorage.setItem(canvasLocalKey(dealId), JSON.stringify(sections));
+}
+
+export async function listCanvasSections(dealId: string): Promise<CanvasSection[]> {
+  if (!SUPABASE_URL) {
+    return Object.values(readLocalCanvas(dealId));
+  }
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/canvas_sections?deal_id=eq.${dealId}`,
+    {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    }
+  );
+  if (!res.ok) return Object.values(readLocalCanvas(dealId));
+  return res.json();
+}
+
+export async function saveCanvasSection(
+  dealId: string,
+  sectionKey: string,
+  content: string,
+  status: CanvasSectionStatus = "in_progress"
+): Promise<CanvasSection> {
+  const now = new Date().toISOString();
+  const section: CanvasSection = {
+    id: `${dealId}-${sectionKey}`,
+    deal_id: dealId,
+    section_key: sectionKey,
+    content,
+    status,
+    created_at: now,
+    updated_at: now,
+  };
+
+  if (!SUPABASE_URL) {
+    const existing = readLocalCanvas(dealId);
+    existing[sectionKey] = { ...existing[sectionKey], ...section };
+    writeLocalCanvas(dealId, existing);
+    return existing[sectionKey];
+  }
+
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/canvas_sections?on_conflict=deal_id,section_key`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify({
+        deal_id: dealId,
+        section_key: sectionKey,
+        content,
+        status,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    // Fall back to local storage
+    const existing = readLocalCanvas(dealId);
+    existing[sectionKey] = { ...existing[sectionKey], ...section };
+    writeLocalCanvas(dealId, existing);
+    return existing[sectionKey];
+  }
+
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
+export async function runSocraticDiscovery(params: {
+  deal_id: string;
+  section_key: string;
+  section_title: string;
+  section_focus: string;
+  venture_description: string;
+  messages: DiscoveryMessage[];
+}): Promise<DiscoveryResponse> {
+  return invokeFunction<DiscoveryResponse>("socratic-discovery", params);
 }
 
 const DEMO_DEALS: Deal[] = [
