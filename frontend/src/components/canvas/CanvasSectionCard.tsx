@@ -12,6 +12,7 @@ import {
   Pencil,
   Check,
   X,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,8 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { saveCanvasSection } from "@/api";
+import { CommentThread } from "./CommentThread";
 import type { CanvasSectionDefinition } from "@/lib/canvasSections";
-import type { CanvasSection, CanvasSectionStatus } from "@/types";
+import type { CanvasSection, CanvasSectionStatus, Comment } from "@/types";
 
 const ICONS = {
   AlertCircle,
@@ -37,7 +39,9 @@ interface Props {
   definition: CanvasSectionDefinition;
   section: CanvasSection | null;
   dealId: string;
+  comments: Comment[];
   onUpdate: (updated: CanvasSection) => void;
+  onCommentsChange: (comments: Comment[]) => void;
   onStartDiscovery: () => void;
 }
 
@@ -53,13 +57,16 @@ export function CanvasSectionCard({
   definition,
   section,
   dealId,
+  comments,
   onUpdate,
+  onCommentsChange,
   onStartDiscovery,
 }: Props) {
   const Icon = ICONS[definition.icon];
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(section?.content || "");
   const [saving, setSaving] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const content = section?.content || "";
   const status: CanvasSectionStatus = section?.status || "empty";
@@ -180,7 +187,24 @@ export function CanvasSectionCard({
                   {status === "complete" ? "Reopen" : "Mark Complete"}
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowComments((v) => !v)}
+                className="ml-auto"
+              >
+                <MessageSquare className="mr-1 h-3 w-3" />
+                {comments.length > 0 ? comments.length : ""} Comments
+              </Button>
             </div>
+            {showComments && (
+              <CommentThread
+                dealId={dealId}
+                sectionKey={definition.key}
+                comments={comments}
+                onChange={onCommentsChange}
+              />
+            )}
           </>
         )}
       </CardContent>

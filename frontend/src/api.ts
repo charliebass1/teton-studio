@@ -8,6 +8,11 @@ import type {
   CanvasSectionStatus,
   DiscoveryMessage,
   DiscoveryResponse,
+  MeetingSession,
+  MeetingAgenda,
+  MeetingSynthesis,
+  AdversarialMode,
+  Comment,
 } from "./types";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
@@ -207,6 +212,218 @@ export async function runSocraticDiscovery(params: {
   messages: DiscoveryMessage[];
 }): Promise<DiscoveryResponse> {
   return invokeFunction<DiscoveryResponse>("socratic-discovery", params);
+}
+
+// ---- Meeting sessions ----
+
+function meetingsLocalKey(dealId: string) {
+  return `meetings_${dealId}`;
+}
+
+function readLocalMeetings(dealId: string): MeetingSession[] {
+  try {
+    const raw = localStorage.getItem(meetingsLocalKey(dealId));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalMeetings(dealId: string, sessions: MeetingSession[]) {
+  localStorage.setItem(meetingsLocalKey(dealId), JSON.stringify(sessions));
+}
+
+export async function listMeetingSessions(dealId: string): Promise<MeetingSession[]> {
+  if (!SUPABASE_URL) return readLocalMeetings(dealId);
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/meeting_sessions?deal_id=eq.${dealId}&order=created_at.desc`,
+    {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    }
+  );
+  if (!res.ok) return readLocalMeetings(dealId);
+  return res.json();
+}
+
+export async function saveMeetingSession(
+  dealId: string,
+  session: Partial<MeetingSession> & { week_label: string; agenda: MeetingAgenda }
+): Promise<MeetingSession> {
+  const now = new Date().toISOString();
+  const record: MeetingSession = {
+    id: session.id || crypto.randomUUID(),
+    deal_id: dealId,
+    week_label: session.week_label,
+    agenda: session.agenda,
+    synthesis: session.synthesis || null,
+    created_at: session.id ? (session.created_at || now) : now,
+    updated_at: now,
+  };
+
+  if (!SUPABASE_URL) {
+    const existing = readLocalMeetings(dealId);
+    const idx = existing.findIndex((s) => s.id === record.id);
+    if (idx >= 0) existing[idx] = record;
+    else existing.unshift(record);
+    writeLocalMeetings(dealId, existing);
+    return record;
+  }
+
+  const isUpdate = !!session.id;
+  const url = isUpdate
+    ? `${SUPABASE_URL}/rest/v1/meeting_sessions?id=eq.${session.id}`
+    : `${SUPABASE_URL}/rest/v1/meeting_sessions`;
+  const method = isUpdate ? "PATCH" : "POST";
+
+  const res = await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      deal_id: dealId,
+      week_label: record.week_label,
+      agenda: record.agenda,
+      synthesis: record.synthesis,
+    }),
+  });
+
+  if (!res.ok) {
+    const existing = readLocalMeetings(dealId);
+    const idx = existing.findIndex((s) => s.id === record.id);
+    if (idx >= 0) existing[idx] = record;
+    else existing.unshift(record);
+    writeLocalMeetings(dealId, existing);
+    return record;
+  }
+
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
+export async function synthesizeMeeting(params: {
+  deal_id: string;
+  venture_description: string;
+  agenda: MeetingAgenda;
+  previous_commitments?: string;
+}): Promise<MeetingSynthesis> {
+  return invokeFunction<MeetingSynthesis>("monday-meeting", params);
+}
+
+// ---- Adversarial simulator ----
+
+export async function runAdversarial(params: {
+  deal_id: string;
+  mode: AdversarialMode;
+  venture_description: string;
+  messages: DiscoveryMessage[];
+}): Promise<{ message: string }> {
+  return invokeFunction<{ message: string }>("adversarial-simulator", params);
+}
+
+// ---- Comments ----
+
+function commentsLocalKey(dealId: string) {
+  return `comments_${dealId}`;
+}
+
+function readLocalComments(dealId: string): Comment[] {
+  try {
+    const raw = localStorage.getItem(commentsLocalKey(dealId));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalComments(dealId: string, comments: Comment[]) {
+  localStorage.setItem(commentsLocalKey(dealId), JSON.stringify(comments));
+}
+
+export async function listComments(dealId: string): Promise<Comment[]> {
+  if (!SUPABASE_URL) return readLocalComments(dealId);
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/comments?deal_id=eq.${dealId}&order=created_at.asc`,
+    {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    }
+  );
+  if (!res.ok) return readLocalComments(dealId);
+  return res.json();
+}
+
+export async function addComment(
+  dealId: string,
+  sectionKey: string,
+  authorRole: "founder" | "vc",
+  content: string
+): Promise<Comment> {
+  const now = new Date().toISOString();
+  const comment: Comment = {
+    id: crypto.randomUUID(),
+    deal_id: dealId,
+    section_key: sectionKey,
+    author_role: authorRole,
+    content,
+    created_at: now,
+  };
+
+  if (!SUPABASE_URL) {
+    const existing = readLocalComments(dealId);
+    existing.push(comment);
+    writeLocalComments(dealId, existing);
+    return comment;
+  }
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/comments`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      deal_id: dealId,
+      section_key: sectionKey,
+      author_role: authorRole,
+      content,
+    }),
+  });
+
+  if (!res.ok) {
+    const existing = readLocalComments(dealId);
+    existing.push(comment);
+    writeLocalComments(dealId, existing);
+    return comment;
+  }
+
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
+export async function deleteComment(commentId: string, dealId: string): Promise<void> {
+  if (!SUPABASE_URL) {
+    const existing = readLocalComments(dealId);
+    writeLocalComments(dealId, existing.filter((c) => c.id !== commentId));
+    return;
+  }
+  await fetch(`${SUPABASE_URL}/rest/v1/comments?id=eq.${commentId}`, {
+    method: "DELETE",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
 }
 
 const DEMO_DEALS: Deal[] = [

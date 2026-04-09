@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CANVAS_SECTIONS, STAGES } from "@/lib/canvasSections";
 import type { CanvasSectionDefinition } from "@/lib/canvasSections";
-import type { CanvasSection } from "@/types";
-import { listCanvasSections } from "@/api";
+import type { CanvasSection, Comment } from "@/types";
+import { listCanvasSections, listComments } from "@/api";
 import { CanvasSectionCard } from "./CanvasSectionCard";
 import { DiscoveryChat } from "./DiscoveryChat";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,16 +14,18 @@ interface Props {
 
 export function Canvas({ dealId, ventureDescription }: Props) {
   const [sections, setSections] = useState<Record<string, CanvasSection>>({});
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeDiscovery, setActiveDiscovery] = useState<CanvasSectionDefinition | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    listCanvasSections(dealId)
-      .then((list) => {
+    Promise.all([listCanvasSections(dealId), listComments(dealId)])
+      .then(([sectionList, commentList]) => {
         const map: Record<string, CanvasSection> = {};
-        for (const s of list) map[s.section_key] = s;
+        for (const s of sectionList) map[s.section_key] = s;
         setSections(map);
+        setComments(commentList);
       })
       .finally(() => setLoading(false));
   }, [dealId]);
@@ -31,6 +33,22 @@ export function Canvas({ dealId, ventureDescription }: Props) {
   function handleUpdate(updated: CanvasSection) {
     setSections((prev) => ({ ...prev, [updated.section_key]: updated }));
   }
+
+  function handleCommentsChange(sectionKey: string, sectionComments: Comment[]) {
+    setComments((prev) => [
+      ...prev.filter((c) => c.section_key !== sectionKey),
+      ...sectionComments,
+    ]);
+  }
+
+  const commentsBySection = useMemo(() => {
+    const out: Record<string, Comment[]> = {};
+    for (const c of comments) {
+      if (!out[c.section_key]) out[c.section_key] = [];
+      out[c.section_key].push(c);
+    }
+    return out;
+  }, [comments]);
 
   const grouped = useMemo(() => {
     const out: Record<string, CanvasSectionDefinition[]> = {};
@@ -91,7 +109,9 @@ export function Canvas({ dealId, ventureDescription }: Props) {
                   definition={def}
                   section={sections[def.key] || null}
                   dealId={dealId}
+                  comments={commentsBySection[def.key] || []}
                   onUpdate={handleUpdate}
+                  onCommentsChange={(c) => handleCommentsChange(def.key, c)}
                   onStartDiscovery={() => setActiveDiscovery(def)}
                 />
               ))}

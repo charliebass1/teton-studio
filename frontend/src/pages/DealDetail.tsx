@@ -10,6 +10,8 @@ import { BrandStudio } from "@/components/studio/BrandStudio";
 import { PositioningCanvas } from "@/components/studio/PositioningCanvas";
 import { GtmSprinter } from "@/components/studio/GtmSprinter";
 import { Canvas } from "@/components/canvas/Canvas";
+import { MondayMeeting } from "@/components/meetings/MondayMeeting";
+import { AdversarialSimulator } from "@/components/adversarial/AdversarialSimulator";
 import type { Deal } from "@/types";
 
 export default function DealDetail() {
@@ -61,6 +63,8 @@ export default function DealDetail() {
       <Tabs defaultValue="canvas">
         <TabsList>
           <TabsTrigger value="canvas">Canvas</TabsTrigger>
+          <TabsTrigger value="meetings">Meetings</TabsTrigger>
+          <TabsTrigger value="adversarial">Adversarial</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="brand">Brand Studio</TabsTrigger>
           <TabsTrigger value="positioning">Positioning</TabsTrigger>
@@ -69,6 +73,14 @@ export default function DealDetail() {
 
         <TabsContent value="canvas">
           <Canvas dealId={deal.id} ventureDescription={deal.description} />
+        </TabsContent>
+
+        <TabsContent value="meetings">
+          <MondayMeeting dealId={deal.id} ventureDescription={deal.description} />
+        </TabsContent>
+
+        <TabsContent value="adversarial">
+          <AdversarialSimulator dealId={deal.id} ventureDescription={deal.description} />
         </TabsContent>
 
         <TabsContent value="overview">

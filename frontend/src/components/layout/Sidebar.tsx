@@ -4,8 +4,11 @@ import {
   Briefcase,
   Sparkles,
   Settings,
+  User,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useViewAs } from "@/lib/viewAs";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -15,6 +18,8 @@ const navItems = [
 ];
 
 export function Sidebar() {
+  const [viewAs, setViewAs] = useViewAs();
+
   return (
     <aside className="flex h-screen w-60 flex-col border-r bg-[var(--card)]">
       <div className="flex h-14 items-center border-b px-4">
@@ -40,6 +45,40 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* View-as toggle */}
+      <div className="border-t p-3">
+        <div className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
+          <Eye className="h-3 w-3" />
+          Viewing as
+        </div>
+        <div className="flex gap-1 rounded-md bg-[var(--muted)] p-1">
+          <button
+            onClick={() => setViewAs("founder")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors",
+              viewAs === "founder"
+                ? "bg-[var(--background)] text-[var(--foreground)] shadow-sm"
+                : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            )}
+          >
+            <User className="h-3 w-3" />
+            Founder
+          </button>
+          <button
+            onClick={() => setViewAs("vc")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors",
+              viewAs === "vc"
+                ? "bg-[var(--background)] text-[var(--foreground)] shadow-sm"
+                : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            )}
+          >
+            <Eye className="h-3 w-3" />
+            VC
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

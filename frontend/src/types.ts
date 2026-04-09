@@ -45,6 +45,44 @@ export interface DiscoveryResponse {
   synthesized_content: string | null;
 }
 
+export interface MeetingAgenda {
+  learnings: string;
+  tested_assumptions: string;
+  riskiest_unknown: string;
+  commitments: string;
+}
+
+export interface MeetingSynthesis {
+  decisions: string[];
+  next_steps: string[];
+  vc_summary: string;
+}
+
+export interface MeetingSession {
+  id: string;
+  deal_id: string | null;
+  week_label: string;
+  agenda: MeetingAgenda;
+  synthesis: MeetingSynthesis | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdversarialMode =
+  | "skeptical_customer"
+  | "competitor_killer"
+  | "premortem"
+  | "why_not_done";
+
+export interface Comment {
+  id: string;
+  deal_id: string | null;
+  section_key: string;
+  author_role: "founder" | "vc";
+  content: string;
+  created_at: string;
+}
+
 export interface BrandStudioInputs {
   company_description: string;
   sector: string;
